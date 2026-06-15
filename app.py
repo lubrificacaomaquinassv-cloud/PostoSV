@@ -274,8 +274,8 @@ col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
 with col_titulo:
-    st.title("⛽ Posto de Abastecimento — SV")
-    st.caption("SIGCF | Controladoria Bataguassu-MS")
+    st.title("⛽ POSTO DE ABASTECIMENTO — SEDE")
+    st.caption("SIGCF | CONTROLADORIA - GESTAO DE DADOS")
 
 st.divider()
 
