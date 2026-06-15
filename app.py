@@ -19,7 +19,7 @@ st.set_page_config(
 
 LOGO_URL = "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg"
 
-CAP_S500 = 15000
+CAP_S500 = 10000
 CAP_S10 = 5000
 CAP_GAS = 5000
 
@@ -235,12 +235,11 @@ def periodo_bounds(label):
 
 
 def saldo_from_view(row, cap):
+    """Saldo da view; % sempre pelo tamanho real do tanque no posto."""
     if not row:
         return 0.0, 0.0
     saldo = float(row.get("saldo_litros") or row.get("saldo_estimado") or 0)
-    pct = float(row.get("pct_restante") or row.get("pct_tanque") or 0)
-    if pct == 0 and cap > 0:
-        pct = min(100.0, (saldo / cap) * 100)
+    pct = min(100.0, (saldo / cap) * 100) if cap > 0 else 0.0
     return saldo, pct
 
 
