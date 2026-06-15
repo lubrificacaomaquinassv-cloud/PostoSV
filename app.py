@@ -2,6 +2,7 @@ import calendar
 from datetime import date, timedelta
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from supabase import create_client
 
@@ -59,21 +60,6 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
 .sec{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
  letter-spacing:2px;text-transform:uppercase;color:#8aab80;
  border-left:4px solid #4a9e3f;padding-left:10px;margin:4px 0 10px;}
-.tank-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;}
-.tank-card{background:#111c10;border:1px solid #1e2e1c;border-radius:12px;padding:18px 14px;
- flex:1;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:6px;}
-.tank-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
- letter-spacing:1px;text-transform:uppercase;color:#8aab80;text-align:center;}
-.tank-outer{width:78px;height:140px;background:#0d180c;border:2px solid #1e2e1c;border-radius:10px;
- position:relative;overflow:hidden;margin:4px 0;}
-.tank-liquid{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 8px 8px;}
-.tank-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
- font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#e8edd0;
- text-shadow:0 1px 4px rgba(0,0,0,.8);z-index:2;}
-.tank-vol{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;}
-.tank-cap{font-size:11px;color:#8aab80;font-family:'Barlow Condensed',sans-serif;}
-.tank-badge{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
- letter-spacing:1px;padding:4px 12px;border-radius:6px;margin-top:4px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -100,28 +86,50 @@ def fuel_family(ft):
     return "outro"
 
 
-def tank_status(pct, accent):
+def pct_bar_color(pct):
     if pct <= 20:
-        return "NÍVEL CRÍTICO", "#e74c3c", "#2a1010"
+        return "#c0392b"
     if pct <= 40:
-        return "NÍVEL BAIXO", "#d4a017", "#2a2200"
-    return "NÍVEL OK", accent, "#101820"
+        return "#d4a017"
+    return "#4a9e3f"
 
 
-def tank_card_html(pct, saldo, cap, title, accent):
-    pct = min(100.0, max(0.0, float(pct)))
-    badge, badge_col, badge_bg = tank_status(pct, accent)
-    liquid = accent if pct > 40 else "#d4a017" if pct > 20 else "#e74c3c"
-    return f"""
-<div class="tank-card">
-  <div class="tank-label">{title}<br><span class="tank-cap">Tanque {fmt_l(cap)}</span></div>
-  <div class="tank-outer">
-    <div class="tank-liquid" style="height:{pct:.1f}%;background:{liquid};"></div>
-    <div class="tank-pct">{pct:.1f}%</div>
-  </div>
-  <div class="tank-vol" style="color:{accent}">{fmt_l(saldo)}</div>
-  <div class="tank-badge" style="color:{badge_col};background:{badge_bg}">{badge}</div>
-</div>"""
+def tank_gauge(pct, saldo, cap, title, key):
+    """Gauge arc — mesmo padrão do painel Comboio no Gestor."""
+    cor = pct_bar_color(pct)
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=round(float(pct), 1),
+        number={"suffix": "%", "font": {"color": "#e8edd0", "size": 32}},
+        title={
+            "text": (
+                f"<span style='color:#e8edd0;font-size:14px'>{title}</span><br>"
+                f"<span style='color:#8aab80;font-size:12px'>"
+                f"Saldo: <b>{fmt_l(saldo)}</b> · tanque {fmt_l(cap)}</span>"
+            ),
+            "font": {"color": "#e8edd0"},
+        },
+        gauge={
+            "axis": {
+                "range": [0, 100], "ticksuffix": "%",
+                "tickcolor": "#4a6644", "tickfont": {"color": "#e8edd0", "size": 11},
+            },
+            "bar": {"color": cor, "thickness": 0.3},
+            "bgcolor": "#0d180c", "bordercolor": "#1e2e1c",
+            "steps": [
+                {"range": [0, 20], "color": "#2a1010"},
+                {"range": [20, 40], "color": "#2a2200"},
+                {"range": [40, 100], "color": "#1a3318"},
+            ],
+            "threshold": {"line": {"color": "#e74c3c", "width": 3}, "thickness": 0.8, "value": 20},
+        },
+    ))
+    fig.update_layout(
+        paper_bgcolor="#111c10", plot_bgcolor="#111c10",
+        font=dict(color="#e8edd0", family="Barlow Condensed"),
+        height=260, margin=dict(l=30, r=30, t=80, b=10),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 def dark_table(df, height=380):
@@ -224,13 +232,9 @@ with col_logo:
     st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
 with col_titulo:
     st.title("⛽ Posto de Abastecimento — SV")
-    st.caption("SIGCF | Controladoria Bataguassu-MS · Sede · somente consulta (views consolidadas)")
+    st.caption("SIGCF | Controladoria Bataguassu-MS")
 
 st.divider()
-
-st.caption(
-    "Dados do PWA e do banco via views. Lançamento de NF e saída comboio → app Financeiro."
-)
 
 s500_row = load_view_row(VW_SALDO_S500)
 s10_row = load_view_row(VW_SALDO_S10)
@@ -241,14 +245,13 @@ saldo_s10, pct_s10 = saldo_from_view(s10_row, CAP_S10)
 saldo_gas, pct_gas = saldo_from_view(gas_row, CAP_GAS)
 
 st.markdown('<div class="sec">Relógio de estoque — tanques do posto</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="tank-row">'
-    + tank_card_html(pct_s500, saldo_s500, CAP_S500, "Diesel S-500 Aditivado", "#3498db")
-    + tank_card_html(pct_s10, saldo_s10, CAP_S10, "Diesel S-10", "#7ab0d4")
-    + tank_card_html(pct_gas, saldo_gas, CAP_GAS, "Gasolina Comum", "#e67e22")
-    + "</div>",
-    unsafe_allow_html=True,
-)
+g1, g2, g3 = st.columns(3)
+with g1:
+    tank_gauge(pct_s500, saldo_s500, CAP_S500, "Diesel S-500 Aditivado", "gauge_s500")
+with g2:
+    tank_gauge(pct_s10, saldo_s10, CAP_S10, "Diesel S-10", "gauge_s10")
+with g3:
+    tank_gauge(pct_gas, saldo_gas, CAP_GAS, "Gasolina Comum", "gauge_gas")
 
 opcoes_periodo = periodo_opcoes()
 idx_default = 0
@@ -349,4 +352,4 @@ with c_trf:
         )
 
 st.divider()
-st.caption("SIGCF | Posto SV | Somente consulta · Lançamentos no Financeiro")
+st.caption("SIGCF | Posto SV | Controladoria Bataguassu-MS")
