@@ -147,6 +147,21 @@ def fuel_pump_svg(pct, color, uid, width=110, height=150):
 </svg>"""
 
 
+def fuel_pump_icon_svg(accent, uid, width=56, height=76):
+    """Ícone estático da bomba (KPI) — cor cheia, sem % dinâmico."""
+    fz_top, fz_h = 82, 56
+    return f"""<svg width="{width}" height="{height}" viewBox="0 0 110 150" xmlns="http://www.w3.org/2000/svg">
+  <defs><clipPath id="pi{uid}"><rect x="27" y="{fz_top}" width="46" height="{fz_h}" rx="4"/></clipPath></defs>
+  <rect x="12" y="138" width="86" height="7" rx="3.5" fill="#2c3440"/>
+  <rect x="20" y="22" width="56" height="118" rx="9" fill="#4a5568" stroke="#1e2e1c" stroke-width="1.5"/>
+  <rect x="28" y="30" width="40" height="20" rx="3" fill="#a8c0d8" opacity="0.45"/>
+  <rect x="27" y="{fz_top}" width="46" height="{fz_h}" fill="{accent}" clip-path="url(#pi{uid})"/>
+  <rect x="70" y="55" width="18" height="12" rx="4" fill="#6a7585"/>
+  <rect x="84" y="48" width="10" height="26" rx="5" fill="#8a95a5"/>
+  <path d="M94 72 Q102 88 94 98" stroke="#1a1a1a" stroke-width="3" fill="none"/>
+</svg>"""
+
+
 def pump_stock_card(pct, saldo, cap, title, accent, uid):
     color = fill_color(pct, accent)
     badge, badge_col, badge_bg = level_badge(pct, accent)
@@ -161,10 +176,9 @@ def pump_stock_card(pct, saldo, cap, title, accent, uid):
 </div>"""
 
 
-def kpi_pump_card(title, liters, subtitle, pct_fill, accent, uid):
-    """KPI estilo card: título, bomba mini, valor grande."""
-    color = fill_color(pct_fill, accent)
-    svg = fuel_pump_svg(pct_fill, color, f"k{uid}", 56, 76)
+def kpi_pump_card(title, liters, subtitle, accent, uid):
+    """KPI: título, ícone bomba (cor fixa), valor grande."""
+    svg = fuel_pump_icon_svg(accent, f"k{uid}", 56, 76)
     return f"""
 <div class="kpi-pump">
   <div class="kpi-pump-title">{title}</div>
@@ -274,8 +288,8 @@ col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
 with col_titulo:
-    st.title("⛽ POSTO DE ABASTECIMENTO — SEDE")
-    st.caption("SIGCF | CONTROLADORIA - GESTAO DE DADOS")
+    st.title("⛽ Posto de Abastecimento — SV")
+    st.caption("SIGCF | Controladoria Bataguassu-MS")
 
 st.divider()
 
@@ -341,19 +355,19 @@ st.markdown(
         "Diesel S-500 · L/dia",
         tot_s500 / dias_ref,
         f"{fmt_l(tot_s500)} no período · {pct_uso_s500:.1f}% do tanque",
-        pct_uso_s500, "#3498db", "500",
+        "#3498db", "500",
     )
     + kpi_pump_card(
         "Diesel S-10 · L/dia",
         tot_s10 / dias_ref,
         f"{fmt_l(tot_s10)} no período · {pct_uso_s10:.1f}% do tanque",
-        pct_uso_s10, "#7ab0d4", "10",
+        "#7ab0d4", "10",
     )
     + kpi_pump_card(
         "Gasolina · L/dia",
         tot_gas / dias_ref,
         f"{fmt_l(tot_gas)} no período · {pct_uso_gas:.1f}% do tanque",
-        pct_uso_gas, "#e67e22", "gas",
+        "#e67e22", "gas",
     )
     + "</div>",
     unsafe_allow_html=True,
