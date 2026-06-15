@@ -2,7 +2,6 @@ import calendar
 from datetime import date, timedelta
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 from supabase import create_client
 
@@ -60,6 +59,19 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
 .sec{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
  letter-spacing:2px;text-transform:uppercase;color:#8aab80;
  border-left:4px solid #4a9e3f;padding-left:10px;margin:4px 0 10px;}
+.tank-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:4px;}
+.tank-card{background:#111c10;border:1px solid #1e2e1c;border-radius:10px;padding:20px 16px;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;}
+.tank-label-top{font-size:10px;color:#8aab80;text-transform:uppercase;letter-spacing:1.5px;text-align:center;}
+.tank-outer{width:80px;height:150px;background:#0d180c;border:2px solid #1e2e1c;border-radius:10px;
+ position:relative;overflow:hidden;}
+.tank-liquid{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 8px 8px;}
+.tank-pct-txt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+ font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff;
+ text-shadow:0 1px 4px rgba(0,0,0,.9);}
+.tank-vol-txt{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;}
+.tank-status{font-size:10px;font-weight:700;padding:3px 12px;border-radius:12px;
+ text-transform:uppercase;letter-spacing:.5px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,50 +98,37 @@ def fuel_family(ft):
     return "outro"
 
 
-def pct_bar_color(pct):
+def tank_liquid_color(pct, accent):
     if pct <= 20:
-        return "#c0392b"
+        return "#e74c3c"
     if pct <= 40:
         return "#d4a017"
-    return "#4a9e3f"
+    return accent
 
 
-def tank_gauge(pct, saldo, cap, title, key):
-    """Gauge arc — mesmo padrão do painel Comboio no Gestor."""
-    cor = pct_bar_color(pct)
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=round(float(pct), 1),
-        number={"suffix": "%", "font": {"color": "#e8edd0", "size": 32}},
-        title={
-            "text": (
-                f"<span style='color:#e8edd0;font-size:14px'>{title}</span><br>"
-                f"<span style='color:#8aab80;font-size:12px'>"
-                f"Saldo: <b>{fmt_l(saldo)}</b> · tanque {fmt_l(cap)}</span>"
-            ),
-            "font": {"color": "#e8edd0"},
-        },
-        gauge={
-            "axis": {
-                "range": [0, 100], "ticksuffix": "%",
-                "tickcolor": "#4a6644", "tickfont": {"color": "#e8edd0", "size": 11},
-            },
-            "bar": {"color": cor, "thickness": 0.3},
-            "bgcolor": "#0d180c", "bordercolor": "#1e2e1c",
-            "steps": [
-                {"range": [0, 20], "color": "#2a1010"},
-                {"range": [20, 40], "color": "#2a2200"},
-                {"range": [40, 100], "color": "#1a3318"},
-            ],
-            "threshold": {"line": {"color": "#e74c3c", "width": 3}, "thickness": 0.8, "value": 20},
-        },
-    ))
-    fig.update_layout(
-        paper_bgcolor="#111c10", plot_bgcolor="#111c10",
-        font=dict(color="#e8edd0", family="Barlow Condensed"),
-        height=260, margin=dict(l=30, r=30, t=80, b=10),
-    )
-    st.plotly_chart(fig, use_container_width=True, key=key)
+def tank_badge(pct, accent):
+    if pct <= 20:
+        return "NÍVEL CRÍTICO", "#e74c3c", "#2a1010"
+    if pct <= 40:
+        return "NÍVEL BAIXO", "#d4a017", "#2a2200"
+    return "NÍVEL OK", accent, "#101820"
+
+
+def tank_card_html(pct, saldo, cap, title, accent):
+    """Tanque vertical — igual painel Comboio/Posto (HTML frota)."""
+    pct = min(100.0, max(0.0, float(pct)))
+    liquid = tank_liquid_color(pct, accent)
+    badge, badge_col, badge_bg = tank_badge(pct, accent)
+    return f"""
+<div class="tank-card">
+  <div class="tank-label-top">{title} · {fmt_l(cap)}</div>
+  <div class="tank-outer">
+    <div class="tank-liquid" style="height:{pct:.1f}%;background:{liquid};"></div>
+    <div class="tank-pct-txt">{pct:.1f}%</div>
+  </div>
+  <div class="tank-vol-txt" style="color:{accent}">{fmt_l(saldo)}</div>
+  <div class="tank-status" style="color:{badge_col};background:{badge_bg}">{badge}</div>
+</div>"""
 
 
 def dark_table(df, height=380):
@@ -245,13 +244,14 @@ saldo_s10, pct_s10 = saldo_from_view(s10_row, CAP_S10)
 saldo_gas, pct_gas = saldo_from_view(gas_row, CAP_GAS)
 
 st.markdown('<div class="sec">Relógio de estoque — tanques do posto</div>', unsafe_allow_html=True)
-g1, g2, g3 = st.columns(3)
-with g1:
-    tank_gauge(pct_s500, saldo_s500, CAP_S500, "Diesel S-500 Aditivado", "gauge_s500")
-with g2:
-    tank_gauge(pct_s10, saldo_s10, CAP_S10, "Diesel S-10", "gauge_s10")
-with g3:
-    tank_gauge(pct_gas, saldo_gas, CAP_GAS, "Gasolina Comum", "gauge_gas")
+st.markdown(
+    '<div class="tank-row">'
+    + tank_card_html(pct_s500, saldo_s500, CAP_S500, "Diesel S-500 Aditivado", "#3498db")
+    + tank_card_html(pct_s10, saldo_s10, CAP_S10, "Diesel S-10", "#7ab0d4")
+    + tank_card_html(pct_gas, saldo_gas, CAP_GAS, "Gasolina Comum", "#e67e22")
+    + "</div>",
+    unsafe_allow_html=True,
+)
 
 opcoes_periodo = periodo_opcoes()
 idx_default = 0
