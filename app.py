@@ -59,19 +59,23 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
 .sec{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
  letter-spacing:2px;text-transform:uppercase;color:#8aab80;
  border-left:4px solid #4a9e3f;padding-left:10px;margin:4px 0 10px;}
-.tank-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:4px;}
-.tank-card{background:#111c10;border:1px solid #1e2e1c;border-radius:10px;padding:20px 16px;
- display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;}
-.tank-label-top{font-size:10px;color:#8aab80;text-transform:uppercase;letter-spacing:1.5px;text-align:center;}
-.tank-outer{width:80px;height:150px;background:#0d180c;border:2px solid #1e2e1c;border-radius:10px;
- position:relative;overflow:hidden;}
-.tank-liquid{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 8px 8px;}
-.tank-pct-txt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
- font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff;
- text-shadow:0 1px 4px rgba(0,0,0,.9);}
-.tank-vol-txt{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;}
-.tank-status{font-size:10px;font-weight:700;padding:3px 12px;border-radius:12px;
- text-transform:uppercase;letter-spacing:.5px;}
+.pump-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:4px;}
+.pump-stock{background:#111c10;border:1px solid #1e2e1c;border-radius:12px;padding:18px 14px;
+ text-align:center;font-family:'Barlow Condensed',sans-serif;}
+.pump-stock-title{font-size:11px;font-weight:700;color:#8aab80;text-transform:uppercase;
+ letter-spacing:1.2px;margin-bottom:10px;}
+.pump-stock-saldo{font-size:22px;font-weight:700;margin-top:6px;}
+.pump-stock-cap{font-size:11px;color:#8aab80;margin-top:2px;}
+.pump-stock-badge{display:inline-block;margin-top:8px;font-size:10px;font-weight:700;
+ padding:3px 12px;border-radius:12px;text-transform:uppercase;}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.kpi-pump{background:#111c10;border:1px solid #1e2e1c;border-radius:12px;padding:16px 18px;
+ font-family:'Barlow Condensed',sans-serif;min-height:130px;}
+.kpi-pump-title{font-size:11px;font-weight:700;color:#8aab80;text-transform:uppercase;
+ letter-spacing:1.2px;margin-bottom:12px;}
+.kpi-pump-body{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.kpi-pump-val{font-size:32px;font-weight:700;color:#e8edd0;line-height:1;}
+.kpi-pump-sub{font-size:11px;color:#8aab80;margin-top:10px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,7 +102,14 @@ def fuel_family(ft):
     return "outro"
 
 
-def tank_liquid_color(pct, accent):
+def fmt_n(v):
+    try:
+        return f"{float(v):,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        return "0,0"
+
+
+def fill_color(pct, accent):
     if pct <= 20:
         return "#e74c3c"
     if pct <= 40:
@@ -106,7 +117,7 @@ def tank_liquid_color(pct, accent):
     return accent
 
 
-def tank_badge(pct, accent):
+def level_badge(pct, accent):
     if pct <= 20:
         return "NÍVEL CRÍTICO", "#e74c3c", "#2a1010"
     if pct <= 40:
@@ -114,20 +125,54 @@ def tank_badge(pct, accent):
     return "NÍVEL OK", accent, "#101820"
 
 
-def tank_card_html(pct, saldo, cap, title, accent):
-    """Tanque vertical — igual painel Comboio/Posto (HTML frota)."""
+def fuel_pump_svg(pct, color, uid, width=110, height=150):
+    """Bomba de combustível com nível de preenchimento (formato KPI visual)."""
     pct = min(100.0, max(0.0, float(pct)))
-    liquid = tank_liquid_color(pct, accent)
-    badge, badge_col, badge_bg = tank_badge(pct, accent)
+    fz_top, fz_h = 82, 56
+    fill_h = fz_h * pct / 100.0
+    y_fill = fz_top + (fz_h - fill_h)
+    pct_txt = f"{pct:.0f}%" if pct >= 10 else f"{pct:.1f}%"
+    fs = 17 if width >= 90 else 11
+    return f"""<svg width="{width}" height="{height}" viewBox="0 0 110 150" xmlns="http://www.w3.org/2000/svg">
+  <defs><clipPath id="pz{uid}"><rect x="27" y="{fz_top}" width="46" height="{fz_h}" rx="4"/></clipPath></defs>
+  <rect x="12" y="138" width="86" height="7" rx="3.5" fill="#2c3440"/>
+  <rect x="20" y="22" width="56" height="118" rx="9" fill="#4a5568" stroke="#1e2e1c" stroke-width="1.5"/>
+  <rect x="28" y="30" width="40" height="20" rx="3" fill="#a8c0d8" opacity="0.45"/>
+  <rect x="27" y="{y_fill:.2f}" width="46" height="{fill_h:.2f}" fill="{color}" clip-path="url(#pz{uid})"/>
+  <rect x="70" y="55" width="18" height="12" rx="4" fill="#6a7585"/>
+  <rect x="84" y="48" width="10" height="26" rx="5" fill="#8a95a5"/>
+  <path d="M94 72 Q102 88 94 98" stroke="#1a1a1a" stroke-width="3" fill="none"/>
+  <text x="52" y="108" text-anchor="middle" fill="#ffffff"
+    font-family="Barlow Condensed,Arial,sans-serif" font-size="{fs}" font-weight="700">{pct_txt}</text>
+</svg>"""
+
+
+def pump_stock_card(pct, saldo, cap, title, accent, uid):
+    color = fill_color(pct, accent)
+    badge, badge_col, badge_bg = level_badge(pct, accent)
+    svg = fuel_pump_svg(pct, color, f"s{uid}", 110, 150)
     return f"""
-<div class="tank-card">
-  <div class="tank-label-top">{title} · {fmt_l(cap)}</div>
-  <div class="tank-outer">
-    <div class="tank-liquid" style="height:{pct:.1f}%;background:{liquid};"></div>
-    <div class="tank-pct-txt">{pct:.1f}%</div>
+<div class="pump-stock">
+  <div class="pump-stock-title">{title}</div>
+  {svg}
+  <div class="pump-stock-saldo" style="color:{accent}">{fmt_l(saldo)}</div>
+  <div class="pump-stock-cap">Tanque {fmt_l(cap)}</div>
+  <div class="pump-stock-badge" style="color:{badge_col};background:{badge_bg}">{badge}</div>
+</div>"""
+
+
+def kpi_pump_card(title, liters, subtitle, pct_fill, accent, uid):
+    """KPI estilo card: título, bomba mini, valor grande."""
+    color = fill_color(pct_fill, accent)
+    svg = fuel_pump_svg(pct_fill, color, f"k{uid}", 56, 76)
+    return f"""
+<div class="kpi-pump">
+  <div class="kpi-pump-title">{title}</div>
+  <div class="kpi-pump-body">
+    <div>{svg}</div>
+    <div class="kpi-pump-val" style="color:{accent}">{fmt_n(liters)}</div>
   </div>
-  <div class="tank-vol-txt" style="color:{accent}">{fmt_l(saldo)}</div>
-  <div class="tank-status" style="color:{badge_col};background:{badge_bg}">{badge}</div>
+  <div class="kpi-pump-sub">{subtitle}</div>
 </div>"""
 
 
@@ -245,10 +290,10 @@ saldo_gas, pct_gas = saldo_from_view(gas_row, CAP_GAS)
 
 st.markdown('<div class="sec">Relógio de estoque — tanques do posto</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="tank-row">'
-    + tank_card_html(pct_s500, saldo_s500, CAP_S500, "Diesel S-500 Aditivado", "#3498db")
-    + tank_card_html(pct_s10, saldo_s10, CAP_S10, "Diesel S-10", "#7ab0d4")
-    + tank_card_html(pct_gas, saldo_gas, CAP_GAS, "Gasolina Comum", "#e67e22")
+    '<div class="pump-row">'
+    + pump_stock_card(pct_s500, saldo_s500, CAP_S500, "Diesel S-500 Aditivado", "#3498db", "500")
+    + pump_stock_card(pct_s10, saldo_s10, CAP_S10, "Diesel S-10", "#7ab0d4", "10")
+    + pump_stock_card(pct_gas, saldo_gas, CAP_GAS, "Gasolina Comum", "#e67e22", "gas")
     + "</div>",
     unsafe_allow_html=True,
 )
@@ -288,10 +333,32 @@ tot_s10 = litros_familia(df_per, "s10")
 tot_gas = litros_familia(df_per, "gas")
 
 st.markdown(f'<div class="sec">Consumo · {filtro} · litros/dia (média)</div>', unsafe_allow_html=True)
-k1, k2, k3 = st.columns(3)
-k1.metric("Diesel S-500", fmt_l(tot_s500 / dias_ref), f"{fmt_l(tot_s500)} no período")
-k2.metric("Diesel S-10", fmt_l(tot_s10 / dias_ref), f"{fmt_l(tot_s10)} no período")
-k3.metric("Gasolina", fmt_l(tot_gas / dias_ref), f"{fmt_l(tot_gas)} no período")
+pct_uso_s500 = min(100.0, (tot_s500 / CAP_S500) * 100) if CAP_S500 else 0
+pct_uso_s10 = min(100.0, (tot_s10 / CAP_S10) * 100) if CAP_S10 else 0
+pct_uso_gas = min(100.0, (tot_gas / CAP_GAS) * 100) if CAP_GAS else 0
+st.markdown(
+    '<div class="kpi-row">'
+    + kpi_pump_card(
+        "Diesel S-500 · L/dia",
+        tot_s500 / dias_ref,
+        f"{fmt_l(tot_s500)} no período · {pct_uso_s500:.1f}% do tanque",
+        pct_uso_s500, "#3498db", "500",
+    )
+    + kpi_pump_card(
+        "Diesel S-10 · L/dia",
+        tot_s10 / dias_ref,
+        f"{fmt_l(tot_s10)} no período · {pct_uso_s10:.1f}% do tanque",
+        pct_uso_s10, "#7ab0d4", "10",
+    )
+    + kpi_pump_card(
+        "Gasolina · L/dia",
+        tot_gas / dias_ref,
+        f"{fmt_l(tot_gas)} no período · {pct_uso_gas:.1f}% do tanque",
+        pct_uso_gas, "#e67e22", "gas",
+    )
+    + "</div>",
+    unsafe_allow_html=True,
+)
 
 st.markdown('<div class="sec">Frotas abastecidas no posto</div>', unsafe_allow_html=True)
 if df_per.empty:
