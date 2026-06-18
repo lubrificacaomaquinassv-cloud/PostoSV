@@ -334,8 +334,8 @@ col_logo, col_titulo = st.columns([1.1, 5.9])
 with col_logo:
     st.markdown(logo_html(118), unsafe_allow_html=True)
 with col_titulo:
-    st.title("⛽ Posto de Abastecimento — SV")
-    st.caption("SIGCF | Controladoria Bataguassu-MS")
+    st.title("⛽ POSTO DE ABASTECIMENTO — SEDE")
+    st.caption("SIGCF | CONTROLADORIA - GESTÃO E ANÁLISE DE DADOS")
 
 st.divider()
 
@@ -520,4 +520,4 @@ with c_trf:
         )
 
 st.divider()
-st.caption("SIGCF | Posto SV | Controladoria Bataguassu-MS")
+st.caption("SIGCF | POSTO - SEDE | CONTROLADORIA")
