@@ -5,12 +5,6 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 from supabase import create_client
-from sigcf_auth import exigir_acesso
-
-# ═══════════════════════════════════════════════════════════════════════
-# PAINEL POSTO SV — somente leitura (views consolidadas). Sem lançamentos.
-# Entradas NF e saídas comboio → app Financeiro (combustivel_controle).
-# ═══════════════════════════════════════════════════════════════════════
 
 st.set_page_config(
     page_title="Posto SV - SIGCF",
@@ -19,9 +13,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-exigir_acesso("Posto SV — Painel")
+from sigcf_auth import exigir_acesso, logo_html
 
-LOGO_URL = "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg"
+exigir_acesso("Posto SV — Painel")
 
 CAP_S500 = 10000
 CAP_S10 = 5000
@@ -59,7 +53,9 @@ div[data-testid="metric-container"],div[data-testid="stMetric"]{
  background:#0d180c;border:1px solid #4a9e3f;border-radius:10px;padding:12px 18px;}
 div[data-testid="stMetric"] label,div[data-testid="metric-container"] label{color:#8aab80!important;}
 div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Condensed',sans-serif;}
-.logo-box{background:#ffffff;border-radius:10px;padding:8px 12px;display:inline-block;}
+.logo-frame{background:linear-gradient(145deg,#0a1628,#0d2040);border:2px solid #c9a227;
+ border-radius:12px;padding:5px;display:inline-block;box-shadow:0 4px 18px rgba(0,0,0,.45);}
+.logo-frame img{display:block;border-radius:8px;}
 .sec{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
  letter-spacing:2px;text-transform:uppercase;color:#8aab80;
  border-left:4px solid #4a9e3f;padding-left:10px;margin:4px 0 10px;}
@@ -319,9 +315,9 @@ def load_view_df(name, order_col="created_at", limit=5000):
         return pd.DataFrame()
 
 
-col_logo, col_titulo = st.columns([1, 5])
+col_logo, col_titulo = st.columns([1.1, 5.9])
 with col_logo:
-    st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
+    st.markdown(logo_html(118), unsafe_allow_html=True)
 with col_titulo:
     st.title("⛽ Posto de Abastecimento — SV")
     st.caption("SIGCF | Controladoria Bataguassu-MS")
