@@ -76,6 +76,15 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
 .kpi-pump-body{display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .kpi-pump-val{font-size:32px;font-weight:700;color:#e8edd0;line-height:1;}
 .kpi-pump-sub{font-size:11px;color:#8aab80;margin-top:10px;}
+.stButton button,.stDownloadButton button,[data-testid="stDownloadButton"] button{
+ background:#4a9e3f!important;color:#ffffff!important;border:1px solid #6fcf60!important;
+ font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;
+ text-transform:uppercase;border-radius:8px;min-height:44px;}
+.stButton button:hover,.stDownloadButton button:hover,[data-testid="stDownloadButton"] button:hover{
+ background:#3d8534!important;}
+.stDownloadButton button p,.stDownloadButton button span{color:#ffffff!important;}
+.stTextInput input,[data-testid="stDateInput"] input{
+ background:#dce6d2!important;color:#1a2818!important;border:1px solid #4a6644!important;border-radius:8px!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -261,7 +270,13 @@ def periodo_opcoes():
     hoje = date.today()
     first = hoje.replace(day=1)
     last_prev = first - timedelta(days=1)
-    return ["Hoje", "Este mês", f"{MESES_PT[last_prev.month - 1]}/{last_prev.year}"]
+    return [
+        "Hoje",
+        "Ontem",
+        "Este mês",
+        f"{MESES_PT[last_prev.month - 1]}/{last_prev.year}",
+        "Escolher datas",
+    ]
 
 
 def periodo_bounds(label):
@@ -345,12 +360,30 @@ st.markdown(
 opcoes_periodo = periodo_opcoes()
 idx_default = 0
 filtro = st.selectbox(
-    "Selecionar período:",
+    "Período para tabela e Excel:",
     options=opcoes_periodo,
     index=idx_default,
     key="sel_periodo_posto",
 )
-ini, fim, dias_ref = periodo_bounds(filtro)
+if filtro == "Escolher datas":
+    fc1, fc2 = st.columns(2)
+    with fc1:
+        data_ini = st.date_input("De", value=date.today(), key="baixa_de", format="DD/MM/YYYY")
+    with fc2:
+        data_fim = st.date_input("Até", value=date.today(), key="baixa_ate", format="DD/MM/YYYY")
+    ini, fim = data_ini, data_fim
+    if ini > fim:
+        ini, fim = fim, ini
+    dias_ref = max(1, (fim - ini).days + 1)
+    filtro_label = f"{ini.strftime('%d/%m/%Y')} a {fim.strftime('%d/%m/%Y')}"
+elif filtro == "Ontem":
+    ontem = date.today() - timedelta(days=1)
+    ini = fim = ontem
+    dias_ref = 1
+    filtro_label = f"Ontem ({ontem.strftime('%d/%m/%Y')})"
+else:
+    ini, fim, dias_ref = periodo_bounds(filtro)
+    filtro_label = filtro
 
 df_ab = load_view_df(VW_ABAST)
 if not df_ab.empty:
@@ -376,7 +409,7 @@ tot_s500 = litros_familia(df_per, "s500")
 tot_s10 = litros_familia(df_per, "s10")
 tot_gas = litros_familia(df_per, "gas")
 
-st.markdown(f'<div class="sec">Consumo · {filtro} · litros/dia (média)</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="sec">Consumo · {filtro_label} · litros/dia (média)</div>', unsafe_allow_html=True)
 pct_uso_s500 = min(100.0, (tot_s500 / CAP_S500) * 100) if CAP_S500 else 0
 pct_uso_s10 = min(100.0, (tot_s10 / CAP_S10) * 100) if CAP_S10 else 0
 pct_uso_gas = min(100.0, (tot_gas / CAP_GAS) * 100) if CAP_GAS else 0
@@ -405,9 +438,12 @@ st.markdown(
 )
 
 st.markdown('<div class="sec">Frotas abastecidas no posto</div>', unsafe_allow_html=True)
-st.caption("Exporte o Excel para dar baixa no sistema de controle (somente leitura — PWA não é alterado).")
+st.caption(
+    f"Período: **{filtro_label}** — exporte o Excel para baixa no sistema de controle. "
+    "Se não baixou no dia, use **Ontem** ou **Escolher datas**."
+)
 if df_per.empty:
-    st.info(f"Nenhum abastecimento em {filtro}.")
+    st.info(f"Nenhum abastecimento no período ({filtro_label}).")
 else:
     show = df_per.sort_values("dt", ascending=False).copy()
     df_xlsx = df_baixa_posto(show)
@@ -437,13 +473,13 @@ else:
         cols_tbl.insert(5, "Frente")
     tbl = show.rename(columns=rename)[cols_tbl]
     dark_table(tbl, height=420)
-    slug = filtro.replace(" ", "_").replace("/", "-")
     st.download_button(
         "⬇️ Exportar Excel — baixa no sistema",
         data=gerar_excel(df_xlsx),
-        file_name=f"posto_baixa_{slug}_{date.today():%Y%m%d}.xlsx",
+        file_name=f"posto_baixa_{ini:%Y%m%d}_{fim:%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
+        type="primary",
     )
 
 st.divider()
