@@ -1,9 +1,11 @@
 import calendar
 from datetime import date, timedelta
+from io import BytesIO
 
 import pandas as pd
 import streamlit as st
 from supabase import create_client
+from sigcf_auth import exigir_acesso
 
 # ═══════════════════════════════════════════════════════════════════════
 # PAINEL POSTO SV — somente leitura (views consolidadas). Sem lançamentos.
@@ -16,6 +18,8 @@ st.set_page_config(
     page_icon="⛽",
     initial_sidebar_state="collapsed",
 )
+
+exigir_acesso("Posto SV — Painel")
 
 LOGO_URL = "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg"
 
@@ -211,6 +215,37 @@ def dark_table(df, height=380):
     )
 
 
+def gerar_excel(df: pd.DataFrame) -> bytes:
+    buf = BytesIO()
+    df.to_excel(buf, index=False, sheet_name="Baixa posto")
+    return buf.getvalue()
+
+
+def df_baixa_posto(show: pd.DataFrame) -> pd.DataFrame:
+    """Colunas para baixa no sistema legado (Excel)."""
+    col_frota = "frota" if "frota" in show.columns else "vehicle"
+    col_comb = "combustivel" if "combustivel" in show.columns else "fuel_type"
+    col_h = "horimetro" if "horimetro" in show.columns else "hourmeter"
+    col_frente = "frente" if "frente" in show.columns else "work_front"
+    for cand in ("operador", "operator", "operator_driver"):
+        col_op = cand if cand in show.columns else None
+        if col_op:
+            break
+    else:
+        col_op = "operador"
+
+    out = pd.DataFrame({
+        "Data/Hora": show["dt"].dt.strftime("%d/%m/%Y %H:%M"),
+        "Frota": show[col_frota].fillna(""),
+        "Combustível": show[col_comb].fillna(""),
+        "Qtde (L)": show["liters"].round(1),
+        "Horímetro/Odômetro": show[col_h].fillna("") if col_h in show.columns else "",
+        "Frente de trabalho": show[col_frente].fillna("") if col_frente in show.columns else "",
+        "Operador": show[col_op].fillna("") if col_op in show.columns else "",
+    })
+    return out.sort_values("Data/Hora", ascending=False)
+
+
 def parse_ts(series):
     raw = series.astype(str).str.strip()
     has_tz = raw.str.contains(r"[+-]\d{2}:\d{2}|Z$", regex=True, na=False)
@@ -374,10 +409,12 @@ st.markdown(
 )
 
 st.markdown('<div class="sec">Frotas abastecidas no posto</div>', unsafe_allow_html=True)
+st.caption("Exporte o Excel para dar baixa no sistema de controle (somente leitura — PWA não é alterado).")
 if df_per.empty:
     st.info(f"Nenhum abastecimento em {filtro}.")
 else:
     show = df_per.sort_values("dt", ascending=False).copy()
+    df_xlsx = df_baixa_posto(show)
     show["Data/Hora"] = show["dt"].dt.strftime("%d/%m/%Y %H:%M")
     show["Litros"] = show["liters"].apply(
         lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -385,14 +422,33 @@ else:
     col_frota = "frota" if "frota" in show.columns else "vehicle"
     col_comb = "combustivel" if "combustivel" in show.columns else "fuel_type"
     col_h = "horimetro" if "horimetro" in show.columns else "hourmeter"
-    col_op = "operador" if "operador" in show.columns else "operator_driver"
-    tbl = show.rename(columns={
+    col_frente = "frente" if "frente" in show.columns else "work_front"
+    for cand in ("operador", "operator", "operator_driver"):
+        col_op = cand if cand in show.columns else None
+        if col_op:
+            break
+    else:
+        col_op = "operador"
+    cols_tbl = ["Data/Hora", "Frota", "Combustível", "Litros", "Horím./Odôm.", "Operador"]
+    rename = {
         col_frota: "Frota",
         col_comb: "Combustível",
         col_h: "Horím./Odôm.",
         col_op: "Operador",
-    })[["Data/Hora", "Frota", "Combustível", "Litros", "Horím./Odôm.", "Operador"]]
+    }
+    if col_frente in show.columns:
+        show["Frente"] = show[col_frente].fillna("")
+        cols_tbl.insert(5, "Frente")
+    tbl = show.rename(columns=rename)[cols_tbl]
     dark_table(tbl, height=420)
+    slug = filtro.replace(" ", "_").replace("/", "-")
+    st.download_button(
+        "⬇️ Exportar Excel — baixa no sistema",
+        data=gerar_excel(df_xlsx),
+        file_name=f"posto_baixa_{slug}_{date.today():%Y%m%d}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
 
 st.divider()
 c_ent, c_trf = st.columns(2)
