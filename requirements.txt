@@ -1,6 +1,4 @@
-# Versões FIXAS — não alterar no painel Streamlit; só aqui no GitHub.
-streamlit==1.59.1
-starlette==0.41.3
+streamlit==1.44.1
 pandas>=2.0.0,<3.0.0
 supabase>=2.0.0,<3.0.0
 openpyxl>=3.1.0
