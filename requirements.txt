@@ -1,7 +1,6 @@
-# Streamlit Cloud — NÃO usar Python 3.14 (quebra GZip com starlette 1.4)
-# Fix: streamlit < 1.61 + starlette < 0.42
-streamlit>=1.35.0,<1.60.0
-starlette>=0.40.0,<0.42.0
+# Versões FIXAS — não alterar no painel Streamlit; só aqui no GitHub.
+streamlit==1.59.1
+starlette==0.41.3
 pandas>=2.0.0,<3.0.0
 supabase>=2.0.0,<3.0.0
 openpyxl>=3.1.0
