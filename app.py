@@ -4,7 +4,6 @@ from io import BytesIO
 
 import pandas as pd
 import streamlit as st
-from supabase import create_client
 
 st.set_page_config(
     page_title="Posto SV - SIGCF",
@@ -13,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-from sigcf_auth import exigir_acesso, logo_html
+from sigcf_auth import conectar_supabase, exigir_acesso, logo_html
 
 exigir_acesso("Posto SV — Painel")
 
@@ -303,7 +302,7 @@ def saldo_from_view(row, cap):
     return saldo, pct
 
 
-supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+supabase = conectar_supabase()
 
 
 @st.cache_data(ttl=60)
